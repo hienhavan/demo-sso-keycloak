@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Keycloak SSO Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Keycloak SSO Demo</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api/products/my-products">My Products</a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('admin')">
+                        <a class="nav-link" href="/admin">Admin Panel</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <form th:action="@{/logout}" method="post">
+                        <span class="text-light me-2">Welcome, <span th:text="${user.fullName}">User</span></span>
+                        <button type="submit" class="btn btn-outline-light">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col">
+                <h1>Dashboard</h1>
+                <p class="lead">Welcome to your personal dashboard</p>
+            </div>
+        </div>
+
+        <!-- User Information Card -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">User Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Username:</strong> <span th:text="${user.username}">username</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Email:</strong> <span th:text="${user.email}">email@example.com</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Full Name:</strong> <span th:text="${user.fullName}">Full Name</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Roles:</strong>
+                            <span sec:authorize="hasRole('user')">User</span>
+                            <span sec:authorize="hasRole('admin')">Admin</span>
+                            <span sec:authorize="hasRole('manager')">Manager</span>
+                        </div>
+                        <div class="mt-4">
+                            <a href="http://localhost:8090/realms/sso-demo/account" target="_blank" class="btn btn-primary">
+                                <i class="bi bi-person-circle"></i> Manage Account in Keycloak
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-3">
+                            <a href="/api/products" class="btn btn-outline-primary">
+                                <i class="bi bi-box-seam"></i> View All Products
+                            </a>
+                            <a href="/api/products/my-products" class="btn btn-outline-success">
+                                <i class="bi bi-collection"></i> My Products
+                            </a>
+                            <a href="#" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#createProductModal">
+                                <i class="bi bi-plus-circle"></i> Create New Product
+                            </a>
+                            <div sec:authorize="hasRole('admin')">
+                                <a href="/admin" class="btn btn-outline-danger">
+                                    <i class="bi bi-shield-lock"></i> Admin Panel
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Information -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Security Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>You are authenticated through Keycloak Single Sign-On.</p>
+                        <p>Your session is secured with OAuth2 and OpenID Connect protocols.</p>
+                        <p>Your access is controlled by roles assigned in Keycloak:</p>
+                        <ul>
+                            <li><strong>User role:</strong> Basic access to application features</li>
+                            <li><strong>Manager role:</strong> Additional management capabilities</li>
+                            <li><strong>Admin role:</strong> Full administrative access</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Product Modal -->
+    <div class="modal fade" id="createProductModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm">
+                        <div class="mb-3">
+                            <label for="productName" class="form-label">Product Name</label>
+                            <input type="text" class="form-control" id="productName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productPrice" class="form-label">Price</label>
+                            <input type="number" class="form-control" id="productPrice" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productCategory" class="form-label">Category</label>
+                            <select class="form-select" id="productCategory" required>
+                                <option value="">Select a category</option>
+                                <option value="electronics">Electronics</option>
+                                <option value="clothing">Clothing</option>
+                                <option value="books">Books</option>
+                                <option value="home">Home & Kitchen</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveProductBtn">Save Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <p>Keycloak SSO Demo &copy; 2025</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('saveProductBtn').addEventListener('click', function() {
+            const name = document.getElementById('productName').value;
+            const description = document.getElementById('productDescription').value;
+            const price = document.getElementById('productPrice').value;
+            const category = document.getElementById('productCategory').value;
+            
+            if (!name || !price || !category) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            fetch('/api/products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    price: parseFloat(price),
+                    category: category
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Product created successfully!');
+                    document.getElementById('productForm').reset();
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createProductModal'));
+                    modal.hide();
+                } else {
+                    alert('Error creating product');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating product');
+            });
+        });
+    </script>
+</body>
+</html>

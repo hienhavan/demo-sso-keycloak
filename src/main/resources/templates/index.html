@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keycloak SSO Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            padding-top: 56px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">Keycloak SSO Demo</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="home-link">Home</a>
+                    </li>
+                    <li class="nav-item authenticated-only hidden">
+                        <a class="nav-link" href="#" id="dashboard-link">Dashboard</a>
+                    </li>
+                    <li class="nav-item admin-only hidden">
+                        <a class="nav-link" href="#" id="admin-link">Admin</a>
+                    </li>
+                    <li class="nav-item authenticated-only hidden">
+                        <a class="nav-link" href="#" id="products-link">Products</a>
+                    </li>
+                    <li class="nav-item authenticated-only hidden">
+                        <a class="nav-link" href="#" id="my-products-link">My Products</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <span class="navbar-text me-3 authenticated-only hidden" id="user-greeting"></span>
+                    <button class="btn btn-outline-light authenticated-only hidden" id="logout-btn">Logout</button>
+                    <button class="btn btn-outline-light unauthenticated-only hidden" id="login-btn">Login</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container content">
+        <!-- Home View -->
+        <div id="home-view" class="view">
+            <div class="jumbotron">
+                <h1 class="display-4">Welcome to Keycloak SSO Demo</h1>
+                <p class="lead">This application demonstrates Single Sign-On with Keycloak and Spring Boot.</p>
+                <hr class="my-4">
+                <p>Use the navigation menu to explore the application features.</p>
+                <div class="unauthenticated-only hidden">
+                    <p>Please login to access protected resources.</p>
+                    <button class="btn btn-primary btn-lg" id="home-login-btn">Login</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view hidden">
+            <h1>Dashboard</h1>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">User Profile</div>
+                        <div class="card-body">
+                            <div id="dashboard-user-info"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">Activity</div>
+                        <div class="card-body">
+                            <div id="dashboard-activity"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin View -->
+        <div id="admin-view" class="view hidden">
+            <h1>Admin Dashboard</h1>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card mb-4">
+                        <div class="card-header">System Statistics</div>
+                        <div class="card-body">
+                            <div id="admin-stats"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card mb-4">
+                        <div class="card-header">All Products</div>
+                        <div class="card-body">
+                            <div id="admin-products"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products View -->
+        <div id="products-view" class="view hidden">
+            <h1>Products</h1>
+            <div class="mb-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="product-search" placeholder="Search products...">
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-primary" id="add-product-btn">Add New Product</button>
+                    </div>
+                </div>
+            </div>
+            <div id="products-list" class="row"></div>
+        </div>
+
+        <!-- My Products View -->
+        <div id="my-products-view" class="view hidden">
+            <h1>My Products</h1>
+            <div class="mb-3">
+                <button class="btn btn-primary" id="add-my-product-btn">Add New Product</button>
+            </div>
+            <div id="my-products-list" class="row"></div>
+        </div>
+
+        <!-- Product Form Modal -->
+        <div class="modal fade" id="product-modal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="product-modal-title">Add Product</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="product-form">
+                            <input type="hidden" id="product-id">
+                            <div class="mb-3">
+                                <label for="product-name" class="form-label">Name</label>
+                                <input type="text" class="form-control" id="product-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-description" class="form-label">Description</label>
+                                <textarea class="form-control" id="product-description" rows="3"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-price" class="form-label">Price</label>
+                                <input type="number" class="form-control" id="product-price" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-category" class="form-label">Category</label>
+                                <input type="text" class="form-control" id="product-category" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="save-product-btn">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        const state = {
+            authenticated: false,
+            user: null,
+            isAdmin: false,
+            currentView: 'home-view',
+            products: [],
+            myProducts: []
+        };
+
+        // DOM Elements
+        const elements = {
+            loading: document.getElementById('loading'),
+            views: document.querySelectorAll('.view'),
+            navLinks: {
+                home: document.getElementById('home-link'),
+                dashboard: document.getElementById('dashboard-link'),
+                admin: document.getElementById('admin-link'),
+                products: document.getElementById('products-link'),
+                myProducts: document.getElementById('my-products-link')
+            },
+            authElements: {
+                authenticated: document.querySelectorAll('.authenticated-only'),
+                unauthenticated: document.querySelectorAll('.unauthenticated-only'),
+                admin: document.querySelectorAll('.admin-only'),
+                userGreeting: document.getElementById('user-greeting'),
+                loginBtn: document.getElementById('login-btn'),
+                homeLoginBtn: document.getElementById('home-login-btn'),
+                logoutBtn: document.getElementById('logout-btn')
+            },
+            dashboard: {
+                userInfo: document.getElementById('dashboard-user-info'),
+                activity: document.getElementById('dashboard-activity')
+            },
+            admin: {
+                stats: document.getElementById('admin-stats'),
+                products: document.getElementById('admin-products')
+            },
+            products: {
+                list: document.getElementById('products-list'),
+                search: document.getElementById('product-search'),
+                addBtn: document.getElementById('add-product-btn')
+            },
+            myProducts: {
+                list: document.getElementById('my-products-list'),
+                addBtn: document.getElementById('add-my-product-btn')
+            },
+            productModal: {
+                modal: new bootstrap.Modal(document.getElementById('product-modal')),
+                title: document.getElementById('product-modal-title'),
+                form: document.getElementById('product-form'),
+                id: document.getElementById('product-id'),
+                name: document.getElementById('product-name'),
+                description: document.getElementById('product-description'),
+                price: document.getElementById('product-price'),
+                category: document.getElementById('product-category'),
+                saveBtn: document.getElementById('save-product-btn')
+            }
+        };
+
+        // API Service
+        const api = {
+            baseUrl: '/api',
+            
+            async getAuthStatus() {
+                try {
+                    const response = await axios.get(`${this.baseUrl}/auth-status`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error getting auth status:', error);
+                    return { authenticated: false };
+                }
+            },
+            
+            async getDashboardData() {
+                try {
+                    const response = await axios.get(`${this.baseUrl}/dashboard`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error getting dashboard data:', error);
+                    return null;
+                }
+            },
+            
+            async getAdminData() {
+                try {
+                    const response = await axios.get(`${this.baseUrl}/admin-data`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error getting admin data:', error);
+                    return null;
+                }
+            },
+            
+            async getAllProducts() {
+                try {
+                    const response = await axios.get(`${this.baseUrl}/products`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error getting products:', error);
+                    return [];
+                }
+            },
+            
+            async getMyProducts() {
+                try {
+                    const response = await axios.get(`${this.baseUrl}/products/my-products`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error getting my products:', error);
+                    return [];
+                }
+            },
+            
+            async createProduct(product) {
+                try {
+                    const response = await axios.post(`${this.baseUrl}/products`, product);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error creating product:', error);
+                    throw error;
+                }
+            },
+            
+            async updateProduct(id, product) {
+                try {
+                    const response = await axios.put(`${this.baseUrl}/products/${id}`, product);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error updating product:', error);
+                    throw error;
+                }
+            },
+            
+            async deleteProduct(id) {
+                try {
+                    await axios.delete(`${this.baseUrl}/products/${id}`);
+                    return true;
+                } catch (error) {
+                    console.error('Error deleting product:', error);
+                    return false;
+                }
+            }
+        };
+
+        // View Controller
+        const viewController = {
+            showView(viewId) {
+                elements.views.forEach(view => {
+                    view.classList.add('hidden');
+                });
+                document.getElementById(viewId).classList.remove('hidden');
+                state.currentView = viewId;
+                
+                // Update active nav link
+                Object.values(elements.navLinks).forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                switch(viewId) {
+                    case 'home-view':
+                        elements.navLinks.home.classList.add('active');
+                        break;
+                    case 'dashboard-view':
+                        elements.navLinks.dashboard.classList.add('active');
+                        this.loadDashboard();
+                        break;
+                    case 'admin-view':
+                        elements.navLinks.admin.classList.add('active');
+                        this.loadAdminData();
+                        break;
+                    case 'products-view':
+                        elements.navLinks.products.classList.add('active');
+                        this.loadProducts();
+                        break;
+                    case 'my-products-view':
+                        elements.navLinks.myProducts.classList.add('active');
+                        this.loadMyProducts();
+                        break;
+                }
+            },
+            
+            updateAuthUI() {
+                elements.authElements.authenticated.forEach(el => {
+                    el.classList.toggle('hidden', !state.authenticated);
+                });
+                
+                elements.authElements.unauthenticated.forEach(el => {
+                    el.classList.toggle('hidden', state.authenticated);
+                });
+                
+                elements.authElements.admin.forEach(el => {
+                    el.classList.toggle('hidden', !state.isAdmin);
+                });
+                
+                if (state.authenticated && state.user) {
+                    elements.authElements.userGreeting.textContent = `Hello, ${state.user.fullName}`;
+                }
+            },
+            
+            async loadDashboard() {
+                if (!state.authenticated) return;
+                
+                showLoading();
+                const data = await api.getDashboardData();
+                hideLoading();
+                
+                if (data) {
+                    const userInfo = `
+                        <p><strong>Username:</strong> ${data.user.username}</p>
+                        <p><strong>Email:</strong> ${data.user.email}</p>
+                        <p><strong>Name:</strong> ${data.user.fullName}</p>
+                    `;
+                    elements.dashboard.userInfo.innerHTML = userInfo;
+                    
+                    const activity = `
+                        <p><strong>Last Login:</strong> ${data.lastLogin}</p>
+                        <p><strong>Activity Count:</strong> ${data.activityCount}</p>
+                    `;
+                    elements.dashboard.activity.innerHTML = activity;
+                }
+            },
+            
+            async loadAdminData() {
+                if (!state.authenticated || !state.isAdmin) return;
+                
+                showLoading();
+                const data = await api.getAdminData();
+                hideLoading();
+                
+                if (data) {
+                    const stats = `
+                        <p><strong>Total Users:</strong> ${data.totalUsers}</p>
+                        <p><strong>Total Products:</strong> ${data.totalProducts}</p>
+                    `;
+                    elements.admin.stats.innerHTML = stats;
+                    
+                    // Load admin products
+                    const products = await api.getAllProducts();
+                    if (products && products.length > 0) {
+                        const productsHtml = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Price</th>
+                                        <th>Category</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${products.map(product => `
+                                        <tr>
+                                            <td>${product.id}</td>
+                                            <td>${product.name}</td>
+                                            <td>$${product.price}</td>
+                                            <td>${product.category}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary edit-product" data-id="${product.id}">Edit</button>
+                                                <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                        elements.admin.products.innerHTML = productsHtml;
+                        
+                        // Add event listeners to the edit and delete buttons
+                        document.querySelectorAll('.edit-product').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const productId = btn.getAttribute('data-id');
+                                const product = products.find(p => p.id === productId);
+                                if (product) {
+                                    showProductModal(product);
+                                }
+                            });
+                        });
+                        
+                        document.querySelectorAll('.delete-product').forEach(btn => {
+                            btn.addEventListener('click', async () => {
+                                const productId = btn.getAttribute('data-id');
+                                if (confirm('Are you sure you want to delete this product?')) {
+                                    const deleted = await api.deleteProduct(productId);
+                                    if (deleted) {
+                                        this.loadAdminData();
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        elements.admin.products.innerHTML = '<p>No products found.</p>';
+                    }
+                }
+            },
+            
+            async loadProducts() {
+                if (!state.authenticated) return;
+                
+                showLoading();
+                const products = await api.getAllProducts();
+                hideLoading();
+                
+                state.products = products;
+                this.renderProducts();
+            },
+            
+            async loadMyProducts() {
+                if (!state.authenticated) return;
+                
+                showLoading();
+                const products = await api.getMyProducts();
+                hideLoading();
+                
+                state.myProducts = products;
+                this.renderMyProducts();
+            },
+            
+            renderProducts() {
+                if (state.products.length === 0) {
+                    elements.products.list.innerHTML = '<div class="col-12"><p>No products found.</p></div>';
+                    return;
+                }
+                
+                const productsHtml = state.products.map(product => `
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">${product.name}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">${product.category}</h6>
+                                <p class="card-text">${product.description || 'No description'}</p>
+                                <p class="card-text"><strong>Price:</strong> $${product.price}</p>
+                                <div class="d-flex justify-content-between">
+                                    <button class="btn btn-sm btn-primary edit-product" data-id="${product.id}">Edit</button>
+                                    <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                elements.products.list.innerHTML = productsHtml;
+                
+                // Add event listeners to the edit and delete buttons
+                document.querySelectorAll('.edit-product').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const productId = btn.getAttribute('data-id');
+                        const product = state.products.find(p => p.id === productId);
+                        if (product) {
+                            showProductModal(product);
+                        }
+                    });
+                });
+                
+                document.querySelectorAll('.delete-product').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const productId = btn.getAttribute('data-id');
+                        if (confirm('Are you sure you want to delete this product?')) {
+                            const deleted = await api.deleteProduct(productId);
+                            if (deleted) {
+                                this.loadProducts();
+                            }
+                        }
+                    });
+                });
+            },
+            
+            renderMyProducts() {
+                if (state.myProducts.length === 0) {
+                    elements.myProducts.list.innerHTML = '<div class="col-12"><p>You haven\'t created any products yet.</p></div>';
+                    return;
+                }
+                
+                const productsHtml = state.myProducts.map(product => `
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">${product.name}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">${product.category}</h6>
+                                <p class="card-text">${product.description || 'No description'}</p>
+                                <p class="card-text"><strong>Price:</strong> $${product.price}</p>
+                                <div class="d-flex justify-content-between">
+                                    <button class="btn btn-sm btn-primary edit-my-product" data-id="${product.id}">Edit</button>
+                                    <button class="btn btn-sm btn-danger delete-my-product" data-id="${product.id}">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                elements.myProducts.list.innerHTML = productsHtml;
+                
+                // Add event listeners to the edit and delete buttons
+                document.querySelectorAll('.edit-my-product').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const productId = btn.getAttribute('data-id');
+                        const product = state.myProducts.find(p => p.id === productId);
+                        if (product) {
+                            showProductModal(product);
+                        }
+                    });
+                });
+                
+                document.querySelectorAll('.delete-my-product').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const productId = btn.getAttribute('data-id');
+                        if (confirm('Are you sure you want to delete this product?')) {
+                            const deleted = await api.deleteProduct(productId);
+                            if (deleted) {
+                                this.loadMyProducts();
+                            }
+                        }
+                    });
+                });
+            }
+        };
+
+        // Helper functions
+        function showLoading() {
+            elements.loading.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            elements.loading.classList.add('hidden');
+        }
+        
+        function showProductModal(product = null) {
+            if (product) {
+                elements.productModal.title.textContent = 'Edit Product';
+                elements.productModal.id.value = product.id;
+                elements.productModal.name.value = product.name;
+                elements.productModal.description.value = product.description || '';
+                elements.productModal.price.value = product.price;
+                elements.productModal.category.value = product.category;
+            } else {
+                elements.productModal.title.textContent = 'Add Product';
+                elements.productModal.form.reset();
+                elements.productModal.id.value = '';
+            }
+            
+            elements.productModal.modal.show();
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Navigation
+            elements.navLinks.home.addEventListener('click', (e) => {
+                e.preventDefault();
+                viewController.showView('home-view');
+            });
+            
+            elements.navLinks.dashboard.addEventListener('click', (e) => {
+                e.preventDefault();
+                viewController.showView('dashboard-view');
+            });
+            
+            elements.navLinks.admin.addEventListener('click', (e) => {
+                e.preventDefault();
+                viewController.showView('admin-view');
+            });
+            
+            elements.navLinks.products.addEventListener('click', (e) => {
+                e.preventDefault();
+                viewController.showView('products-view');
+            });
+            
+            elements.navLinks.myProducts.addEventListener('click', (e) => {
+                e.preventDefault();
+                viewController.showView('my-products-view');
+            });
+            
+            // Authentication
+            elements.authElements.loginBtn.addEventListener('click', () => {
+                window.location.href = '/oauth2/authorization/keycloak';
+            });
+            
+            elements.authElements.homeLoginBtn.addEventListener('click', () => {
+                window.location.href = '/oauth2/authorization/keycloak';
+            });
+            
+            elements.authElements.logoutBtn.addEventListener('click', () => {
+                window.location.href = '/logout';
+            });
+            
+            // Products
+            elements.products.addBtn.addEventListener('click', () => {
+                showProductModal();
+            });
+            
+            elements.myProducts.addBtn.addEventListener('click', () => {
+                showProductModal();
+            });
+            
+            elements.productModal.saveBtn.addEventListener('click', async () => {
+                const productData = {
+                    name: elements.productModal.name.value,
+                    description: elements.productModal.description.value,
+                    price: parseFloat(elements.productModal.price.value),
+                    category: elements.productModal.category.value
+                };
+                
+                const productId = elements.productModal.id.value;
+                
+                try {
+                    showLoading();
+                    if (productId) {
+                        await api.updateProduct(productId, productData);
+                    } else {
+                        await api.createProduct(productData);
+                    }
+                    
+                    elements.productModal.modal.hide();
+                    
+                    // Refresh the appropriate view
+                    if (state.currentView === 'products-view') {
+                        viewController.loadProducts();
+                    } else if (state.currentView === 'my-products-view') {
+                        viewController.loadMyProducts();
+                    } else if (state.currentView === 'admin-view') {
+                        viewController.loadAdminData();
+                    }
+                } catch (error) {
+                    alert('Error saving product: ' + (error.response?.data?.message || error.message));
+                } finally {
+                    hideLoading();
+                }
+            });
+            
+            // Search products
+            elements.products.search.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredProducts = state.products.filter(product => 
+                    product.name.toLowerCase().includes(searchTerm) || 
+                    product.description?.toLowerCase().includes(searchTerm) ||
+                    product.category.toLowerCase().includes(searchTerm)
+                );
+                
+                state.filteredProducts = filteredProducts;
+                viewController.renderProducts();
+            });
+        }
+
+        // Initialize the application
+        async function init() {
+            showLoading();
+            
+            try {
+                // Check authentication status
+                const authStatus = await api.getAuthStatus();
+                state.authenticated = authStatus.authenticated;
+                
+                if (state.authenticated && authStatus.user) {
+                    state.user = authStatus.user;
+                    // Check if user has admin role (this is a simplified check)
+                    // In a real app, you'd check the roles from the JWT token
+                    state.isAdmin = true; // For demo purposes, all authenticated users are admins
+                }
+                
+                // Update UI based on authentication status
+                viewController.updateAuthUI();
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Show the appropriate view based on the URL
+                const path = window.location.pathname;
+                if (path === '/dashboard' && state.authenticated) {
+                    viewController.showView('dashboard-view');
+                } else if (path === '/admin' && state.authenticated && state.isAdmin) {
+                    viewController.showView('admin-view');
+                } else if (path.startsWith('/products') && state.authenticated) {
+                    viewController.showView('products-view');
+                } else {
+                    viewController.showView('home-view');
+                }
+            } catch (error) {
+                console.error('Error initializing app:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>

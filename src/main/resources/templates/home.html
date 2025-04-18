@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keycloak SSO Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .hero {
+            background-color: #f8f9fa;
+            padding: 5rem 0;
+            margin-bottom: 2rem;
+        }
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Keycloak SSO Demo</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item" th:if="${isAuthenticated}">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item" th:if="${isAuthenticated}">
+                        <a class="nav-link" href="/api/products/my-products">My Products</a>
+                    </li>
+                    <li class="nav-item" th:if="${isAuthenticated}">
+                        <a class="nav-link" href="/admin">Admin Panel</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a th:if="${!isAuthenticated}" class="btn btn-outline-light me-2" href="/oauth2/authorization/keycloak">Login</a>
+                    <form th:if="${isAuthenticated}" th:action="@{/logout}" method="post">
+                        <span class="text-light me-2">Welcome, <span th:text="${fullName}">User</span></span>
+                        <button type="submit" class="btn btn-outline-light">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero text-center">
+        <div class="container">
+            <h1 class="display-4">Keycloak SSO Demo</h1>
+            <p class="lead">A demonstration of Single Sign-On with Keycloak and Spring Boot</p>
+            <div th:if="${!isAuthenticated}">
+                <a href="/oauth2/authorization/keycloak" class="btn btn-primary btn-lg">Sign In with Keycloak</a>
+            </div>
+            <div th:if="${isAuthenticated}">
+                <a href="/dashboard" class="btn btn-success btn-lg">Go to Dashboard</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="container mb-5">
+        <div class="row text-center">
+            <div class="col-md-4 mb-4">
+                <div class="feature-icon">🔐</div>
+                <h3>Single Sign-On</h3>
+                <p>One login provides access to multiple applications within the ecosystem.</p>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-icon">👥</div>
+                <h3>Role-Based Access</h3>
+                <p>Different access levels based on user roles defined in Keycloak.</p>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-icon">🔄</div>
+                <h3>Centralized User Management</h3>
+                <p>Manage users, roles, and permissions from a single location.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="container mb-5">
+        <div class="row">
+            <div class="col-lg-8 offset-lg-2">
+                <h2 class="text-center mb-4">About This Demo</h2>
+                <p>
+                    This application demonstrates the implementation of Single Sign-On (SSO) using Keycloak with Spring Boot.
+                    It follows Domain-Driven Design principles and showcases how to integrate authentication and authorization
+                    in a modern web application.
+                </p>
+                <p>
+                    Key features demonstrated:
+                </p>
+                <ul>
+                    <li>OAuth2/OpenID Connect integration with Spring Security</li>
+                    <li>JWT token validation and processing</li>
+                    <li>Role-based access control</li>
+                    <li>User synchronization between Keycloak and application database</li>
+                    <li>Secure logout handling</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4">
+        <div class="container text-center">
+            <p>Keycloak SSO Demo &copy; 2025</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: demo-sso-keycloak
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/app_db
+    username: app_user
+    password: app_password
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+  
+  # Flyway Migration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  
+  # Security Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: main-app
+            client-secret: main-app-secret
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email,roles
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8090/realms/sso-demo
+            user-name-attribute: preferred_username
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8090/realms/sso-demo
+          jwk-set-uri: http://localhost:8090/realms/sso-demo/protocol/openid-connect/certs
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  error:
+    include-stacktrace: never
+
+# Keycloak Configuration
+keycloak:
+  realm: sso-demo
+  auth-server-url: http://localhost:8090
+  resource: main-app
+  credentials:
+    secret: main-app-secret
+  use-resource-role-mappings: true
+  bearer-only: false
+  public-client: false
+  principal-attribute: preferred_username
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.keycloak: INFO
+    com.example.demo: DEBUG
+
+# Application-specific properties
+app:
+  keycloak:
+    admin-url: http://localhost:8090/admin/realms/sso-demo
+    admin-username: admin
+    admin-password: admin
+  security:
+    allowed-origins: http://localhost:8080
+    public-paths: /,/public/**,/actuator/health,/actuator/info,/error,/css/**,/js/**,/images/**,/webjars/**,/favicon.ico
